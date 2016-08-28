@@ -5,24 +5,29 @@ import tkFileDialog
 import tkMessageBox
 
 root = Tkinter.Tk(className="Just another Text Editor")
-textPad = ScrolledText(root, width=100, height=80)
+editor = ScrolledText(root, width=100, height=80)
 
 # create a menu & define functions for each menu item
 
 def open_command():
-        file = tkFileDialog.askopenfile(parent=root,mode='rb',title='Select a file')
-        if file != None:
-            contents = file.read()
-            textPad.insert('1.0',contents)
-            file.close()
+        filename = tkFileDialog.askopenfile(parent=root,mode='rb',title='Select a file')
+        if filename != None:
+            text = open(filename).read()
+            editor.delete(1.0, END)
+            editor.insert(END, text)
+            editor.mark_set(INSERT, 1.0)
 
 def save_command():
-    file = tkFileDialog.asksaveasfile(parent=root, mode='w',title='Enter a Destination',defaultextension=".txt")
-    if file != None:
-    # slice off the last character from get, as an extra return is added
-        data  = root.textPad.get('1.0', END+'-1c')
-        file.write(data)
-        file.close()
+    filename = tkFileDialog.asksaveasfile(parent=root, mode='w',title='Enter a Destination',defaultextension=".txt")
+    if filename != None:
+        f = open(filename, "w")
+        text = editor.get(1.0, END)
+        try:
+            # normalize trailing whitespace
+            f.write(text.rstrip())
+            f.write("\n")
+        finally:
+            f.close()
 
 def exit_command():
     if tkMessageBox.askokcancel("Quit", "Do you really want to quit?"):
@@ -50,8 +55,22 @@ def main():
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=about_command)
 
+    # theme changing
+    editor.pack(fill=Y, expand=1)
+    editor.config(borderwidth=0,
+    font="{Lucida Sans Typewriter} 12",
+    foreground="green",
+    background="black",
+    insertbackground="white", # cursor
+    selectforeground="green", # selection
+    selectbackground="#008000",
+    wrap=WORD, # use word wrapping
+    width=64,
+    undo=True, # Tk 8.4
+    )
 
-    textPad.pack()
+    editor.focus_set()
+
     root.mainloop()
 
 main()
