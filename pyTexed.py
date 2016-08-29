@@ -8,12 +8,19 @@ FILETYPES = [
     ("Python Files", "*.py"), ("Text files", "*.txt"), ("All files", "*")
     ]
 
+APPEARANCE = {}
+
 class RoomEditor(Text, object):
 
     modified = None
 
     def __init__(self, master, **options):
         Text.__init__(self, master, **options)
+        self.configure()
+
+        self.filename = None  # current document
+
+    def configure(self):
 
         self.config(
             borderwidth=0,
@@ -27,8 +34,6 @@ class RoomEditor(Text, object):
             undo=True,
             width=64,
             )
-
-        self.filename = None # current document
 
     def _getfilename(self):
         return self._filename
@@ -165,22 +170,16 @@ def file_quit(event=None):
 
 def about(event=None):
     toplevel = Toplevel()
-    label1 = Label(toplevel, text=ABOUT_TEXT, height=0, width=100)
-    label1.pack()
-    label2 = Label(toplevel, text=DISCLAIMER, height=0, width=100)
-    label2.pack()
+    Label(toplevel, text='About pyTexed', height=0, width=100).pack()
+    Label(toplevel, text=ABOUT_TEXT , height=0, width=100).pack()
+    Button(toplevel, text="Ok", height=0, width=100, command=toplevel.destroy).pack()
 
 def find(event=None,):
     search_and_highlight(pattern='text', tag="found")
+    toplevel = Toplevel()
+    Button(toplevel, text="Ok", height=0, width=100, command=lambda: destory_and_reset(toplevel)).pack()
 
-def search_and_highlight(event=None, pattern='', tag="", start="1.0", end="end",
-                          regexp=False):
-
-    '''Apply the given tag to all text that matches the given pattern
-
-    If 'regexp' is set to True, pattern will be treated as a regular
-    expression according to Tcl's regular expression syntax.
-    '''
+def search_and_highlight(pattern='', tag="found", start="1.0", end="end", regexp=False):
 
     start = editor.index(start)
     end = editor.index(end)
@@ -199,7 +198,24 @@ def search_and_highlight(event=None, pattern='', tag="", start="1.0", end="end",
         editor.mark_set("matchEnd", "%s+%sc" % (index, count.get()))
         editor.tag_add(tag, "matchStart", "matchEnd")
 
-def find_test(event=None):
+def destory_and_reset(level):
+    level.destroy()
+    reset_highlight()
+
+def reset_highlight(pattern='', tag="", start="1.0", end="end", regexp=False):
+
+    editor.tag_config(tag.__str__(), background="black", foreground="#cc9900")
+    start = editor.index(start)
+    end = editor.index(end)
+    editor.mark_set("matchStart", start)
+    editor.mark_set("matchEnd", end)
+    editor.tag_add(tag, "matchStart", "matchEnd")
+
+def find_and_replace(event=None):
+    """
+    work in progress
+
+    """
 
     match_string = 'tes'
     newline = "\n"
