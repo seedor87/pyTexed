@@ -1,57 +1,293 @@
-import Tkinter
 from Tkinter import *
-from ScrolledText import *
-import tkFileDialog
-import tkMessageBox
+import os, re
 
-root = Tkinter.Tk(className="Just another Text Editor")
-textPad = ScrolledText(root, width=100, height=80)
+TITLE = 'pyTexed'
+ABOUT_TEXT = 'something'
 
-# create a menu & define functions for each menu item
+FILETYPES = [
+    ("Python Files", "*.py"), ("Text files", "*.txt"), ("All files", "*")
+    ]
 
-def open_command():
-        file = tkFileDialog.askopenfile(parent=root,mode='rb',title='Select a file')
-        if file != None:
-            contents = file.read()
-            textPad.insert('1.0',contents)
-            file.close()
+APPEARANCE = {}
 
-def save_command():
-    file = tkFileDialog.asksaveasfile(parent=root, mode='w',title='Enter a Destination',defaultextension=".txt")
-    if file != None:
-    # slice off the last character from get, as an extra return is added
-        data  = root.textPad.get('1.0', END+'-1c')
-        file.write(data)
-        file.close()
+class RoomEditor(Text, object):
 
-def exit_command():
-    if tkMessageBox.askokcancel("Quit", "Do you really want to quit?"):
-        root.destroy()
-        sys.exit(0)
+    modified = None
 
-def about_command():
-    label = tkMessageBox.showinfo("About", "Just Another TextPad \n Copyright \n No rights left to reserve")
+    def __init__(self, master, **options):
+        Text.__init__(self, master, **options)
+        self.configure()
 
+        self.filename = None  # current document
 
-def dummy():
-    print "I am a Dummy Command, I will be removed in the next step"
+    def configure(self):
 
-def main():
+        self.config(
+            borderwidth=0,
+            font="{Lucida Sans Typewriter} 11",
+            foreground="#cc9900",
+            background="black",
+            insertbackground="green", # cursor
+            selectforeground="white", # selection
+            selectbackground="#008000",
+            wrap=WORD, # use word wrapping
+            undo=True,
+            width=64,
+            )
+
+    def _getfilename(self):
+        return self._filename
+
+    def _setfilename(self, filename):
+        self._filename = filename
+        title = os.path.basename(filename or "(new document)")
+        title = title + " - " + TITLE
+        self.winfo_toplevel().title(title)
+
+    filename = property(_getfilename, _setfilename)
+
+    def edit_modified(self, value=None):
+        # Python 2.5's implementation is broken
+        return self.tk.call(self, "edit", "modified", value)
+
+    def load(self, filename):
+        text = open(filename).read()
+        self.delete(1.0, END)
+        self.insert(END, text)
+        self.mark_set(INSERT, 1.0)
+        self.modified = False
+        self.filename = filename
+
+    def save(self, filename=None):
+        if filename is None:
+            filename = self.filename
+        f = open(filename, "w")
+        s = self.get(1.0, END)
+        try:
+            f.write(s.rstrip())
+            f.write("\n")
+        finally:
+            f.close()
+        self.modified = False
+        self.filename = filename
+
+    def clear(self):
+        pass
+
+class Cancel(Exception):
+    pass
+
+def open_as():
+    from tkFileDialog import askopenfilename
+    f = askopenfilename(parent=root, filetypes=FILETYPES)
+    if not f:
+        raise Cancel
+    try:
+        editor.load(f)
+    except IOError:
+        from tkMessageBox import showwarning
+        showwarning("Open", "Cannot open the file.")
+        raise Cancel
+
+def save_as():
+    from tkFileDialog import asksaveasfilename
+    f = asksaveasfilename(parent=root, defaultextension=".txt")
+    if not f:
+        raise Cancel
+    try:
+        editor.save(f)
+    except IOError:
+        from tkMessageBox import showwarning
+        showwarning("Save As", "Cannot save the file.")
+        raise Cancel
+
+def save():
+    if editor.filename:
+        try:
+            editor.save(editor.filename)
+        except IOError:
+            from tkMessageBox import showwarning
+            showwarning("Save", "Cannot save the file.")
+            raise Cancel
+    else:
+        save_as()
+
+def save_if_modified():
+    if not editor.modified:
+        return
+    if askyesnocancel(TITLE, "Document modified. Save changes?"):
+        save()
+
+def askyesnocancel(title=None, message=None, **options):
+    import tkMessageBox
+    s = tkMessageBox.Message(
+        title=title, message=message,
+        icon=tkMessageBox.QUESTION,
+        type=tkMessageBox.YESNOCANCEL,
+        **options).show()
+    if isinstance(s, bool):
+        return s
+    if s == "cancel":
+        raise Cancel
+    return s == "yes"
+
+def file_new(event=None):
+    try:
+        save_if_modified()
+        editor.clear()
+    except Cancel:
+        pass
+    return "break" # don't propagate events
+
+def file_open(event=None):
+    try:
+        save_if_modified()
+        open_as()
+    except Cancel:
+        pass
+    return "break"
+
+def file_save(event=None):
+    try:
+        save()
+    except Cancel:
+        pass
+    return "break"
+
+def file_save_as(event=None):
+    try:
+        save_as()
+    except Cancel:
+        pass
+    return "break"
+
+def file_quit(event=None):
+    try:
+        save_if_modified()
+    except Cancel:
+        return
+    root.quit()
+
+def about(event=None):
+    toplevel = Toplevel()
+    Label(toplevel, text='About pyTexed', height=0, width=100).pack()
+    Label(toplevel, text=ABOUT_TEXT , height=0, width=100).pack()
+    Button(toplevel, text="Ok", height=0, width=100, command=toplevel.destroy).pack()
+
+def find(event=None,):
+    search_and_highlight(pattern='text', tag="found")
+    toplevel = Toplevel()
+    Button(toplevel, text="Ok", height=0, width=100, command=lambda: destory_and_reset(toplevel)).pack()
+
+def search_and_highlight(pattern='', tag="found", start="1.0", end="end", regexp=False):
+
+    start = editor.index(start)
+    end = editor.index(end)
+    editor.mark_set("matchStart", start)
+    editor.mark_set("matchEnd", start)
+    editor.mark_set("searchLimit", end)
+
+    count = IntVar()
+    editor.tag_config(tag.__str__(), background="white", foreground="black")
+    while True:
+        index = editor.search(pattern, "matchEnd", "searchLimit",
+                            count=count, regexp=regexp)
+        if index == "": break
+        if count.get() == 0: break  # degenerate pattern which matches zero-length strings
+        editor.mark_set("matchStart", index)
+        editor.mark_set("matchEnd", "%s+%sc" % (index, count.get()))
+        editor.tag_add(tag, "matchStart", "matchEnd")
+
+def destory_and_reset(level):
+    level.destroy()
+    reset_highlight()
+
+def reset_highlight(pattern='', tag="", start="1.0", end="end", regexp=False):
+
+    editor.tag_config(tag.__str__(), background="black", foreground="#cc9900")
+    start = editor.index(start)
+    end = editor.index(end)
+    editor.mark_set("matchStart", start)
+    editor.mark_set("matchEnd", end)
+    editor.tag_add(tag, "matchStart", "matchEnd")
+
+def find_and_replace(event=None):
+    """
+    work in progress
+
+    """
+
+    match_string = 'tes'
+    newline = "\n"
+    data = editor.get("1.0", END)
+    lines = data.split(newline)
+    p = re.compile(match_string)
+
+    results = []
+    line_num = 0
+    for line in lines:
+        line_num += 1
+        iterator = p.finditer(line)
+        for match in iterator:
+            res = match.span()
+            sys.stdout.write(str(res))
+            results.append((line_num, res[0], res[1]))
+        sys.stdout.write(newline)
+
+    print results
+
+def main(root):
+
     menu = Menu(root)
     root.config(menu=menu)
+
+    # file menu dro down
     filemenu = Menu(menu)
     menu.add_cascade(label="File", menu=filemenu)
-    filemenu.add_command(label="New", command=dummy)
-    filemenu.add_command(label="Open...", command=open_command)
-    filemenu.add_command(label="Save", command=save_command)
+
+    filemenu.add_command(label="New", command=file_new)
+    filemenu.add_command(label="Open", command=file_open)
+    filemenu.add_command(label="Save", command=file_save)
     filemenu.add_separator()
-    filemenu.add_command(label="Exit", command=exit_command)
+    filemenu.add_command(label="Quit", command=file_quit)
     helpmenu = Menu(menu)
     menu.add_cascade(label="Help", menu=helpmenu)
-    helpmenu.add_command(label="About...", command=about_command)
+    helpmenu.add_command(label="About...", command=about)
+
+    # tools menu drop down
+    toolsmenu = Menu()
+    toolsmenu.add_cascade(label="Tools", menu=filemenu)
+
+    toolsmenu.add_command(label="Find", command=find)
+
+    # editor set up
+    root.config(background="black")
+    root.wm_state("zoomed")
+
+    editor.pack(fill=Y, expand=1, pady=10)
+
+    editor.focus_set()
+
+    # key bindings for short cuts
+    editor.bind("<Control-n>", file_new)
+    editor.bind("<Control-o>", file_open)
+    editor.bind("<Control-s>", file_save)
+    editor.bind("<Control-Shift-S>", file_save_as)
+    editor.bind("<Control-q>", file_quit)
+    editor.bind("<Control-f>", find)
+
+    root.protocol("WM_DELETE_WINDOW", file_quit) # window close button
+
+    try:
+        editor.load(sys.argv[1])
+    except (IndexError, IOError):
+        pass
+
+    mainloop()
 
 
-    textPad.pack()
-    root.mainloop()
+root = Tk()
+editor = RoomEditor(root)
 
-main()
+main(root)
+sys.exit(0)
