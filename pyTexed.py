@@ -2,6 +2,7 @@ from Tkinter import *
 import os, re
 
 TITLE = 'pyTexed'
+ABOUT_TEXT = 'something'
 
 FILETYPES = [
     ("Python Files", "*.py"), ("Text files", "*.txt"), ("All files", "*")
@@ -163,19 +164,61 @@ def file_quit(event=None):
     root.quit()
 
 def about(event=None):
-    pass
+    toplevel = Toplevel()
+    label1 = Label(toplevel, text=ABOUT_TEXT, height=0, width=100)
+    label1.pack()
+    label2 = Label(toplevel, text=DISCLAIMER, height=0, width=100)
+    label2.pack()
 
-def find(event=None):
+def find(event=None,):
+    search_and_highlight(pattern='text', tag="found")
+
+def search_and_highlight(event=None, pattern='', tag="", start="1.0", end="end",
+                          regexp=False):
+
+    '''Apply the given tag to all text that matches the given pattern
+
+    If 'regexp' is set to True, pattern will be treated as a regular
+    expression according to Tcl's regular expression syntax.
+    '''
+
+    start = editor.index(start)
+    end = editor.index(end)
+    editor.mark_set("matchStart", start)
+    editor.mark_set("matchEnd", start)
+    editor.mark_set("searchLimit", end)
+
+    count = IntVar()
+    editor.tag_config(tag.__str__(), background="white", foreground="black")
+    while True:
+        index = editor.search(pattern, "matchEnd", "searchLimit",
+                            count=count, regexp=regexp)
+        if index == "": break
+        if count.get() == 0: break  # degenerate pattern which matches zero-length strings
+        editor.mark_set("matchStart", index)
+        editor.mark_set("matchEnd", "%s+%sc" % (index, count.get()))
+        editor.tag_add(tag, "matchStart", "matchEnd")
+
+def find_test(event=None):
+
+    match_string = 'tes'
     newline = "\n"
     data = editor.get("1.0", END)
     lines = data.split(newline)
-    p = re.compile('tes', re.IGNORECASE)
+    p = re.compile(match_string)
+
+    results = []
+    line_num = 0
     for line in lines:
+        line_num += 1
         iterator = p.finditer(line)
         for match in iterator:
             res = match.span()
             sys.stdout.write(str(res))
+            results.append((line_num, res[0], res[1]))
         sys.stdout.write(newline)
+
+    print results
 
 def main(root):
 
