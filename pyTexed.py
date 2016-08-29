@@ -3,6 +3,7 @@ import os, re, ast
 
 TITLE = 'pyTexed'
 ABOUT_TEXT = 'something'
+CURRENT_APPEARANCE = None
 
 FILETYPES = [
     ("Python Files", "*.py"), ("Text files", "*.txt"), ("All files", "*")
@@ -35,11 +36,14 @@ class RoomEditor(Text, object):
         self.filename = None  # current document
 
     def configure(self, dict):
+        global CURRENT_APPEARANCE
 
         if isinstance(dict, basestring):
             dictionary = ast.literal_eval(dict)
         else:
             dictionary = dict
+
+        CURRENT_APPEARANCE = dictionary
 
         self.config(
             borderwidth=dictionary['borderwidth'],
@@ -151,10 +155,6 @@ def askyesnocancel(title=None, message=None, **options):
         raise Cancel
     return s == "yes"
 
-def destory_and_reset(level):
-    level.destroy()
-    reset_highlight()
-
 def change_appearance():
 
     v = StringVar()
@@ -226,9 +226,28 @@ def about(event=None):
     Button(toplevel, text="Ok", height=0, width=100, command=toplevel.destroy).pack()
 
 def find(event=None):
-    search_and_highlight(pattern='text', tag="found")
+
     toplevel = Toplevel()
-    Button(toplevel, text="Ok", height=0, width=100, command=lambda: destory_and_reset(toplevel)).pack()
+    entry = Entry(toplevel)
+    entry.pack()
+
+    v = StringVar()
+    def select():
+        v = entry.get()
+        editor.configure(CURRENT_APPEARANCE)
+        search_and_highlight(pattern=v, tag="found")
+
+    def destroy_and_reset():
+        editor.tag_config('', background="black", foreground="#cc9900")
+        start = editor.index('1.0')
+        end = editor.index('end')
+        editor.mark_set("matchStart", start)
+        editor.mark_set("matchEnd", end)
+        editor.tag_add('', "matchStart", "matchEnd")
+        toplevel.destroy()
+
+    Button(toplevel, text="Find", height=0, width=100, command=select).pack()
+    Button(toplevel, text="Ok", height=0, width=100, command=destroy_and_reset).pack()
 
 def search_and_highlight(pattern, tag="found", start="1.0", end="end", regexp=False):
 
@@ -248,15 +267,6 @@ def search_and_highlight(pattern, tag="found", start="1.0", end="end", regexp=Fa
         editor.mark_set("matchStart", index)
         editor.mark_set("matchEnd", "%s+%sc" % (index, count.get()))
         editor.tag_add(tag, "matchStart", "matchEnd")
-
-def reset_highlight(pattern='', tag="", start="1.0", end="end", regexp=False):
-
-    editor.tag_config(tag.__str__(), background="black", foreground="#cc9900")
-    start = editor.index(start)
-    end = editor.index(end)
-    editor.mark_set("matchStart", start)
-    editor.mark_set("matchEnd", end)
-    editor.tag_add(tag, "matchStart", "matchEnd")
 
 def find_and_replace(event=None):
     """
