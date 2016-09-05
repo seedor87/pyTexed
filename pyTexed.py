@@ -1,14 +1,29 @@
 from Tkinter import *
-import os, re
+import os, re, ast
 
 TITLE = 'pyTexed'
 ABOUT_TEXT = 'something'
+CURRENT_APPEARANCE = None
 
 FILETYPES = [
     ("Python Files", "*.py"), ("Text files", "*.txt"), ("All files", "*")
     ]
 
-APPEARANCE = {}
+APPEARANCE_DARK = {'borderwidth': 0,
+            'font':"{Lucida Sans Typewriter} 11",
+            'foreground':"#cc9900",
+            'background':"black",
+            'insertbackground':"green",
+            'selectforeground':"white",
+            'selectbackground':"#008000"}
+
+APPEARANCE_LIGHT = {'borderwidth': 0,
+                   'font': "{Lucida Sans Typewriter} 11",
+                   'foreground': "black",
+                   'background': "white",
+                   'insertbackground': "black",
+                   'selectforeground': "white",
+                   'selectbackground': "blue"}
 
 class RoomEditor(Text, object):
 
@@ -16,24 +31,34 @@ class RoomEditor(Text, object):
 
     def __init__(self, master, **options):
         Text.__init__(self, master, **options)
-        self.configure()
+        self.configure(dict=APPEARANCE_DARK)
 
         self.filename = None  # current document
 
-    def configure(self):
+    def configure(self, dict):
+        global CURRENT_APPEARANCE
+
+        if isinstance(dict, basestring):
+            dictionary = ast.literal_eval(dict)
+        else:
+            dictionary = dict
+
+        CURRENT_APPEARANCE = dictionary
 
         self.config(
-            borderwidth=0,
-            font="{Lucida Sans Typewriter} 11",
-            foreground="#cc9900",
-            background="black",
-            insertbackground="green", # cursor
-            selectforeground="white", # selection
-            selectbackground="#008000",
-            wrap=WORD, # use word wrapping
+            borderwidth=dictionary['borderwidth'],
+            font=dictionary['font'],
+            foreground=dictionary['foreground'],
+            background=dictionary['background'],
+            insertbackground=dictionary['insertbackground'],
+            selectforeground=dictionary['selectforeground'],
+            selectbackground=dictionary['selectbackground'],
+            wrap=WORD,
             undo=True,
             width=64,
-            )
+        )
+
+
 
     def _getfilename(self):
         return self._filename
@@ -47,7 +72,6 @@ class RoomEditor(Text, object):
     filename = property(_getfilename, _setfilename)
 
     def edit_modified(self, value=None):
-        # Python 2.5's implementation is broken
         return self.tk.call(self, "edit", "modified", value)
 
     def load(self, filename):
@@ -131,6 +155,33 @@ def askyesnocancel(title=None, message=None, **options):
         raise Cancel
     return s == "yes"
 
+def change_appearance():
+
+    v = StringVar()
+    v.set("L")
+
+    APPEARNCES = {"Light": APPEARANCE_LIGHT, "Dark": APPEARANCE_DARK}
+
+    toplevel = Toplevel()
+    Label(toplevel, text='Change Appearance', height=0, width=100).pack()
+
+    def select():
+        try:
+            editor.configure(v.get())
+        except ValueError as e:
+            pass
+        toplevel.destroy()
+
+    for text, mode in APPEARNCES.iteritems():
+        b = Radiobutton(toplevel, text=text, variable=v, value=mode)
+        b.pack(anchor=W)
+
+    Button(toplevel, text="Ok", height=0, width=100, command=select).pack()
+
+def temp(val):
+    for k, v in val.iteritems():
+        print k, v
+
 def file_new(event=None):
     try:
         save_if_modified()
@@ -174,12 +225,31 @@ def about(event=None):
     Label(toplevel, text=ABOUT_TEXT , height=0, width=100).pack()
     Button(toplevel, text="Ok", height=0, width=100, command=toplevel.destroy).pack()
 
-def find(event=None,):
-    search_and_highlight(pattern='text', tag="found")
-    toplevel = Toplevel()
-    Button(toplevel, text="Ok", height=0, width=100, command=lambda: destory_and_reset(toplevel)).pack()
+def find(event=None):
 
-def search_and_highlight(pattern='', tag="found", start="1.0", end="end", regexp=False):
+    toplevel = Toplevel()
+    entry = Entry(toplevel)
+    entry.pack()
+
+    v = StringVar()
+    def select():
+        v = entry.get()
+        editor.configure(CURRENT_APPEARANCE)
+        search_and_highlight(pattern=v, tag="found")
+
+    def destroy_and_reset():
+        editor.tag_config('', background="black", foreground="#cc9900")
+        start = editor.index('1.0')
+        end = editor.index('end')
+        editor.mark_set("matchStart", start)
+        editor.mark_set("matchEnd", end)
+        editor.tag_add('', "matchStart", "matchEnd")
+        toplevel.destroy()
+
+    Button(toplevel, text="Find", height=0, width=100, command=select).pack()
+    Button(toplevel, text="Ok", height=0, width=100, command=destroy_and_reset).pack()
+
+def search_and_highlight(pattern, tag="found", start="1.0", end="end", regexp=False):
 
     start = editor.index(start)
     end = editor.index(end)
@@ -197,19 +267,6 @@ def search_and_highlight(pattern='', tag="found", start="1.0", end="end", regexp
         editor.mark_set("matchStart", index)
         editor.mark_set("matchEnd", "%s+%sc" % (index, count.get()))
         editor.tag_add(tag, "matchStart", "matchEnd")
-
-def destory_and_reset(level):
-    level.destroy()
-    reset_highlight()
-
-def reset_highlight(pattern='', tag="", start="1.0", end="end", regexp=False):
-
-    editor.tag_config(tag.__str__(), background="black", foreground="#cc9900")
-    start = editor.index(start)
-    end = editor.index(end)
-    editor.mark_set("matchStart", start)
-    editor.mark_set("matchEnd", end)
-    editor.tag_add(tag, "matchStart", "matchEnd")
 
 def find_and_replace(event=None):
     """
@@ -250,9 +307,21 @@ def main(root):
     filemenu.add_command(label="Save", command=file_save)
     filemenu.add_separator()
     filemenu.add_command(label="Quit", command=file_quit)
+
+    # help menu drop down
     helpmenu = Menu(menu)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=about)
+
+    # tools menu drop down
+    toolsmenu = Menu(menu)
+    menu.add_cascade(label="Tools", menu=toolsmenu)
+    toolsmenu.add_command(label="Find", command=find)
+
+    # settings menu drop down
+    settingsmenu = Menu(menu)
+    menu.add_cascade(label="Settings", menu=settingsmenu)
+    settingsmenu.add_command(label="Change Appearance", command=change_appearance)
 
     # tools menu drop down
     toolsmenu = Menu()
@@ -275,6 +344,7 @@ def main(root):
     editor.bind("<Control-Shift-S>", file_save_as)
     editor.bind("<Control-q>", file_quit)
     editor.bind("<Control-f>", find)
+    # editor.bind("<Control-r>", editor.configure)
 
     root.protocol("WM_DELETE_WINDOW", file_quit) # window close button
 
