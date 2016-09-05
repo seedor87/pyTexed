@@ -5,7 +5,7 @@ def merge(left,right,compare):
     result=[]
     i,j=0,0
     while i<len(left) and j<len(right):
-        if compare(left[i],right[j]):
+        if compare(right[j], left[i]):
             result.append(left[i])
             i+=1
         else:
@@ -19,7 +19,7 @@ def merge(left,right,compare):
         j+=1
     return result
 
-def mergeSort(L,compare=operator.lt):
+def mergeSort(L,compare=operator.gt):
     if len(L)<2:
         return L[:]
     else:
@@ -30,5 +30,5 @@ def mergeSort(L,compare=operator.lt):
 
 B = [randint(0.0,30.0) for f in range(0,20)]
 
-res = mergeSort(B)
+res = mergeSort(B, compare=operator.gt)
 print res
