@@ -3,6 +3,8 @@ from random import randint, uniform
 
 my_round = lambda L, D: [round(i, D) for i in L ]
 ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4]) # toy for interpretation
+list_rand_int = lambda Lim, Len: [randint(0,Lim) for x in range(0,Len)]
+list_rand_float = lambda Lim, Len: [uniform(0,Lim) for x in range(0,Len)]
 
 def insertion_sort(list, operator=operator.ge):
     ret = list
@@ -24,41 +26,20 @@ def if_in_order(list, operator=operator.ge):
         return if_in_order(ret, operator)
     return False
 
-def test_ins_sort():
+def test_(input, operator=None):
 
-    ins=[randint(0,9) for x in range(0,9)]
-    out = insertion_sort(ins, operator=operator.le)
+    ins = insertion_sort(list(input), operator=operator)
 
-    print out, if_in_order(out, operator=operator.le)
+    ins = my_round(list(ins), 4)
 
-    ins = [uniform(0.0,9.0) for x in range(0,20)]
-    out = insertion_sort(ins)
-    print out, if_in_order(out)
-
-def test_in_order():
-
-    C, D, E = [3, 4], [], [500]
-
-    print if_in_order(C), if_in_order(D), if_in_order(E)
-
-    print ""
-
-    F, G = [3, 4], [3, 4]
-    print if_in_order(F, operator.ge), if_in_order(G, operator.le)
-
-    print ""
-
-    print [ordinal(n) for n in F]
-
-def test_rounding():
-
-    ins = [uniform(0.0,9.0) for x in range(0,20)]
-    out = my_round(insertion_sort(ins, operator=operator.ge), 4)
-    temp = [i for i in out]
-
-    print out, if_in_order(temp, operator=operator.ge)
+    print ins, if_in_order(list(ins), operator=operator), "\n"
 
 if __name__ == '__main__':
 
-    test_rounding()
+    input = list_rand_int(10, 30)
+    test_(input, operator=operator.ge)
+
+    input = list_rand_float(10, 30)
+    test_(input, operator=operator.ge)
+
     sys.exit(0)
