@@ -1,4 +1,8 @@
 import os
+import subprocess
+import doctest
+
+
 
 """
 This is the "example" module.
@@ -59,7 +63,15 @@ def factorial(n):
 
 
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
 
-    os.system("python -m doctest -v doc_test.py")
+    cmd = 'python -m doctest -v doc_test.py'
+
+    doctest.testmod()
+    os.system(cmd)
+
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+    out, err = p.communicate()
+    result = out.split('\n')
+    for lin in result:
+        if not lin.startswith('#'):
+            print(lin)
